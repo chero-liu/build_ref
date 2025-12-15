@@ -1,0 +1,179 @@
+生信笔记-DNBC4tools 简介与使用
+生信二叉树
+生信二叉树
+无内鬼，来点五仁月饼
+创作声明: 内容包含医疗建议
+6 人赞同了该文章
+简介
+DNBC4tools 是华大智造开发的配合 DNBelab C4 单细胞平台使用的上游分析工具。 该上游分析流程从测序得到的 fastq 文件开始，通过拆分数据、细胞定量、定量组合等处理过程，输出 scRNA-seq 的基因表达矩阵或者 scATAC-seq 的染色质可及性矩阵，同时用默认参数得出粗注释并对细胞聚类以显示细胞质量。
+
+
+
+使用
+参考基因组构建索引
+获取参考基因组：
+默认途径：从 EMBL-ebi 提供的 FTP 中人类或小鼠基因组文件所在路径下载
+示例命令（以小鼠为例）：
+
+wget http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/GRCm38.primary_assembly.genome.fa.gz
+
+wget http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/gencode.vM23.primary_assembly.annotation.gtf.gz
+
+Ensembl：进入Ensembl提供的FTP中寻找自己需要的物种以及参考基因组版本。
+路径：Index of /pub (ensembl.org)
+
+其他数据库：如 NCBI 等。
+过滤：单细胞测序得到的测序数据是带有 polyA 尾的 RNA 序列，因此需要从 GTF 文件中过滤掉 non-polyA 的基因。在 dnbc4tools 中，可以用 tools mkgtf 对GTF文件进行过滤。
+示例命令：
+dnbc4tools tools mkgtf --ingtf gencode.vM23.primary_assembly.annotation.gtf --output genes.filter.gtf --type gene_type
+
+参数说明：--ingtf，用来比对的 GTF 参考基因组注释文件名；--output，输出的filter.gtf文件名，注意下一步会用到；--type，指定过滤数据的类型，这里用 gene_type；如有必要，还可以通过 –attribute 参数指定需要保留的基因类型。
+构建基因组索引：如果想要知道单细胞测序得到的reads是从哪个转录本上测出来的，需要将reads比对到参考基因组上，因此需要构建基因组索引（index）。在 dnbc4tools 中，可以用 mkref 构建索引。
+示例命令：
+dnbc4tools rna mkref --ingtf genes.filter.gtf --fasta GRCm38.primary_assembly.genome.fa --threads 10 --species Mus_musculus
+
+参数说明：--ingtf，上一步得到的filter.gtf过滤文件名；--fasta，用来构建索引的参考基因组序列文件名；-- threads，指定线程数；--species，物种名。
+投递脚本文件运行任务，脚本内容如下：
+
+运行完成后，我们打开 脚本文件名.o(job_id) 和 脚本文件名.e(job_id) 文件，确认任务运行成功。
+
+
+出现以上结果，则表明之前投递的基因组索引构建任务运行成功。
+
+
+再打开工作目录，可以看到参考基因组的索引已经构建好了。
+
+运行主工作流
+编写脚本：在编写脚本时，我们可以调用 rna run 运行 DNBC4tools 主工作流。
+示例命令：
+dnbc4tools rna run \
+
+--cDNAfastq1 /test/data/test_cDNA_R1.fastq.gz \
+
+--cDNAfastq2 /test/data/test_cDNA_R2.fastq.gz \
+
+--oligofastq1 /test/data/test_oligo1_1.fq.gz,/test/data/test_oligo2_1.fq.gz \
+
+--oligofastq2 /test/data/test_oligo1_2.fq.gz,/test/data/test_oligo2_2.fq.gz \
+
+--genomeDir /database/scRNA/Mus_musculus/mm10 \
+
+--name test --threads 10
+
+参数说明：--cDNAfastq1、--cDNAfastq2，单个样本通过双端测序得到的一对 fastq 测序数据文件；--oligofastq1、--oligofastq2，给样本测序时用到的两组 oligoRNA 引物序列数据文件；--genomeDir，上一步构建好的参考基因组索引路径；--name，展示在报告中的 sample name，可以自由命名；
+
+投递任务：在 SGE 集群任务管理系统中，投递任务用到的命令是 qsub。投递任务时，我们要需要为运行任务合理分配计算资源，因此需要了解运行任务所用软件的相关要求。根据开发者在 GitHub 上给出的 README.md 文档 ，运行 DNBC4tools 需要占用至少 50GB 的RAM（运行内存）和 4 CPU 核心，在分配计算资源时最好留出适当冗余。在这里，我们选择分配 64GB 内存和 6 CPU 核心。
+投递命令：
+qsub -cwd -N test_dnbc -pe smp 6 -l h_vmem=64G /mnt/osf1/PROJECTS/---/test_dnbc.sh
+
+
+参数说明：-cwd，指定当前目录为工作目录；-N (job_name)，指定任务名称，-pe smp 6，指定使用多线程并行，分配 6 个 CPU 核心；-l h_vmem=64G，指定运行内存上限为 64GB。
+输出文件
+运行完成后，我们打开 脚本文件名.o(job_id) 和 脚本文件名.e(job_id) 文件，确认任务运行成功。
+打开工作目录下以投递任务名命名的文件夹，利用 ls 和 tree -L 2 命令，可以浏览运行 DNBC4tools 主工作流输出的 6 个文件夹，并展示主要的过程和输出文件，运行结果存放在 output 文件夹中。
+
+
+
+其中，/output/filter_matrix 是样本数据经过上游分析后得到的可供下游进一步分析的文件路径，(任务名)_scRNA_report.html 则是用以显示细胞质量的粗注释和初步聚类报告。
+
+结果解读
+单细胞 RNA 测序数据分析报告
+概要
+样本信息
+
+名称：test_dnbc
+
+解读（从左至右）：
+估计的细胞数（来自被识别为细胞的条形码总数）
+每个细胞的 UMI 计数中位数
+每个细胞的基因中位数
+每个细胞的平均读数
+磁珠—细胞图
+
+
+解读：每个条形码中 UMI 计数的分布，可以根据条形码的 UMI 计数或表达谱来确定条形码是否与细胞相关。图上曲线的彩色区域对应与细胞关联的条形码，灰色区域对应与背景关联（来自死细胞的 mRNA，混入系统并被检测出）的条形码。
+
+整体解读：每个液滴的磁珠数直方图
+图例：左侧数字为对应横轴的对应的单个液滴磁珠数，右侧为该类液滴包含的磁珠总数
+样本信息
+
+
+样本名称：test_dnbc
+物种：Mouse（小鼠）
+估计的细胞数：被识别为细胞的条形码总数，5,973
+每细胞的平均读数：每个细胞检测到的平均读段数，23,366
+每细胞的平均 UMI 计数：这一项关系到每个细胞中的平均表达丰度水平，5,103
+每细胞的中位 UMI 计数：4,126
+检测到的总基因数：27,632
+每细胞的平均基因数：每个细胞检测到的平均基因数，这一项关系到每个细胞中基因表达的活性，1,721
+每细胞的中位基因数：每个细胞检测到的基因数的中位数，1,571
+细胞内 RNA 读段占比：带细胞相关条形码的唯一定位到转录组读段的占比，63.09%
+测序饱和度：来自已观察到的 UMI 的 UMI 占比，72.48%。
+
+质控指标：
+-基因数：每个cell barcode检测到的基因总数
+
+-计数数：每个cell barcode对应的转录本数
+
+-线粒体基因比例：来源于线粒体基因的转录本占比
+
+作用：
+用小提琴图展示样本在三个质控指标对应的核概率密度及中位数、上四分位数、第三四分位数组成的框线。
+
+测序
+
+
+Number of Reads：整个样本测到的读段（reads）总数。
+Reads pass QC：通过质控的读段比例。
+Reads with exactly matched barcodes：校正前与条形码白名单匹配的条形码的读段比例。
+Reads with failed barcodes：带无法与条码白名单匹配的无效条码的读段比例。
+Reads filtered on low quality：因为低质量而被过滤掉的读段比例；QC 将过滤平均碱基质量低于 Q20 或前 15 个碱基中 2 个碱基 < Q10 的读段。
+Q30：计算公式为 Q=-10log10(P)，常被用作测序质量的评价指标，其中 P 为出现一个碱基测序错误的概率；根据公式可知，当 1000 个碱基中有一个碱基测序出现了错误，即P=0.001，即Q=30；Q30一般＞80%。
+Q30 bases in cell barcode：基于 cell barcode 的测序质量评分大于30的比例。
+Q30 bases in UMI：基于 UMI 的测序质量评分大于30的比例。
+Q30 bases in reads：基于读段的测序质量评分大于30的比例。
+映射与注释
+
+
+Reads pass QC：质量控制（QC）后可用于下游分析的读段数；QC 包括过滤低质量读段和无效条形码。
+Reads mapped to genome：映射到基因组（与之对应）的读段占比。
+Plus strand：正链的读段数占比，正链序列与 mRNA 的编码链相同。
+Minus strand：负链的读段数占比，负链序列与 mRNA 的编码链互补。
+Mitochondria ratio：线粒体基因比率，指映射到线粒体的读段占比。
+Mapping quality corrected reads：质量校正读段的映射占比；指与单个外显子基因座对齐但也与 1 个或多个非外显子基因座对齐的读段数占比。
+Reads mapped to exonic regions：映射到基因组外显子区域的读段占比。
+Reads mapped to intronic regions：映射到基因组内含子区域的读段占比。
+Reads mapped to antisense gene：映射到基因反义的读段占比；这部分读段虽然映射到转录组，但位于其注释基因的相反链上，因为它们与理论方向相反会被过滤掉。
+Reads mapped to intergenic regions：映射到基因组的基因间区域的读段
+Include introns：有内含子（是否为真命题），此处为 True（真），表明样本中包含内含子。
+分析
+聚类
+
+
+该图是由 UMAP 算法对每个细胞条形码的自动聚类（结果）。聚集到同一组中的细胞具有相似的表达谱。每个点代表一个细胞，并根据不同的聚类进行着色。
+
+
+该图显示了每个细胞条形码的总 UMI 计数。每个点的二维水平和垂直坐标是使用均匀流形近似和投影 （UMAP） 算法获得的。每个点代表一个细胞，并根据 UMI 计数着色。UMI 计数较高的细胞可能比 UMI 计数较少的细胞具有更高的 RNA 含量。
+
+标记基因
+
+
+该表显示了在每个簇的差异表达最显著的 30 个基因。对于每个基因，在每个簇和其余样本之间执行差异表达测试。
+
+p 值是表达差异的统计显著性的度量，p 值越小，细胞聚类越接近理论值。
+Avg_log2FC 是与所有剩余细胞相比，每个簇的标记基因之间平均表达的对数变化。
+细胞注释
+
+
+预测细胞类型：预测的细胞类型依赖于人类细胞图谱和小鼠细胞图谱的 Pearson 相关性，分别对人类数据集使用 scHCL/对小鼠数据集使用 scMCA。UMAP图显示了所有细胞的细胞类型标识，以颜色表示特定的细胞类型。这些注释结果仅供参考，有助于评估文库质量以确定可接受性。
+饱和度
+
+测序饱和度（Sequencing Saturation）：如果捕获的细胞数较多，但是每个细胞里面的平均读段数少，那么饱和度就较低，反之饱和度较高。一般在 60-80% 左右。总的来说，测序饱和度越高，再增加测序量的意义就越小。
+
+
+每细胞平均读段-测序饱和度
+该图显示了测序饱和度指标作为每个细胞平均读段数的下采样测序深度的函数，直至观察到的测序深度。测序饱和度是衡量观察到的文库复杂性的指标，当所有转化的 mRNA 转录本都已测序时接近 1.0（100%）。终点附近曲线的斜率可以解释为将测序深度增加到超过此点所获得的收益的上限。
+
+
+每细胞平均读段-每细胞中位基因数
+该图显示了每个细胞的中位基因数与每个细胞平均读段数的下采样测序深度的函数，直至观察到的测序深度。终点附近曲线的斜率可以解释为将测序深度增加到超过此点所获得的收益的上限。

@@ -1,0 +1,54 @@
+==========================================
+开始构建参考基因组
+物种: Mus_musculus
+FASTA 文件: /nas/database/scrna/10x-refdata/GRCm39-2024-A/fasta/genome.fa
+GTF 文件: /nas/database/scrna/10x-refdata/GRCm39-2024-A/genes/genes.gtf.gz
+基因类型属性: gene_type
+工作目录: /nas/database/scrna/c4-refdata/GRCm39-2024-A
+==========================================
+步骤1: 处理 FASTA 文件...
+FASTA 文件未压缩，直接使用
+步骤2: 处理 GTF 文件...
+解压后的 GTF 文件已存在，跳过解压: /nas/database/scrna/c4-refdata/GRCm39-2024-A/genes.gtf
+步骤3: 过滤 GTF 文件...
+过滤后的 GTF 文件已存在，跳过过滤
+步骤4: 构建基因组索引...
+使用以下命令构建索引:
+  /opt/dnbc4tools2.1.3/dnbc4tools rna mkref \
+    --fasta /nas/database/scrna/10x-refdata/GRCm39-2024-A/fasta/genome.fa \
+    --ingtf /nas/database/scrna/c4-refdata/GRCm39-2024-A/genes.filter.gtf \
+    --species Mus_musculus \
+    --threads 10 \
+    --genomeDir /nas/database/scrna/c4-refdata/GRCm39-2024-A/star
+STAR verison: 2.7.2b
+runMode: genomeGenerate
+runThreadN: 10
+limitGenomeGenerateRAM: 125000000000
+genomeSAindexNbases: 14
+genomeChrBinNbits: 18
+genomeDir: /nas/database/scrna/c4-refdata/GRCm39-2024-A/star
+fasta: /nas/database/scrna/10x-refdata/GRCm39-2024-A/fasta/genome.fa
+gtf: /nas/database/scrna/c4-refdata/GRCm39-2024-A/genes.filter.gtf
+2025-12-12  11:27:36 ..... started STAR run
+Dec 12 11:27:36 ... starting to generate Genome files
+Dec 12 11:28:15 ... starting to sort Suffix Array. This may take a long time...
+Dec 12 11:28:24 ... sorting Suffix Array chunks and saving them to disk...
+Dec 12 11:39:06 ... loading chunks from disk, packing SA...
+Dec 12 11:40:34 ... finished generating suffix array
+Dec 12 11:40:34 ... generating Suffix Array index
+Dec 12 11:43:20 ... completed Suffix Array index
+Dec 12 11:43:20 ..... processing annotations GTF
+Dec 12 11:43:46 ..... inserting junctions into the genome indices
+Dec 12 11:45:47 ... writing Genome to disk ...
+Dec 12 11:46:04 ... writing Suffix Array to disk ...
+Dec 12 11:48:33 ... writing SAindex to disk
+Dec 12 11:48:41 ..... finished successfully
+[0;32;40mAnalysis Complete[0m
+==========================================
+参考基因组构建完成！
+输出文件在: /nas/database/scrna/c4-refdata/GRCm39-2024-A/star
+==========================================
+生成的文件:
+-rw-rw-r-- 1 chenglong.liu chenglong.liu 972568170 Dec 12 11:17 genes.filter.gtf
+-rw-rw-r-- 1 chenglong.liu chenglong.liu 972568170 Dec 12 11:16 genes.gtf
+参考基因组索引文件:
